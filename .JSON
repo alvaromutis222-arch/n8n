@@ -1,0 +1,53 @@
+{
+  "name": "AOEC - Agente Observatorio Económico Colombia",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerTimes": [
+          {
+            "hour": 8,
+            "minute": 0
+          }
+        ]
+      },
+      "id": "cron",
+      "name": "Cron Diario",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "return [\n  {json: {indicator: 'NY.GDP.MKTP.CD', name: 'PIB (USD actuales)'}},\n  {json: {indicator: 'FP.CPI.TOTL.ZG', name: 'Inflación (%)'}},\n  {json: {indicator: 'SL.UEM.TOTL.ZS', name: 'Desempleo (%)'}}\n];"
+      },
+      "id": "prep",
+      "name": "Preparar Indicadores",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.worldbank.org/v2/country/CO/indicator={{$json[\"indicator\"]}}?format=json&per_page=60",
+        "responseFormat": "json",
+        "options": {}
+      },
+      "id": "http",
+      "name": "WB API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const data = items[0].json[1].filter(r => r.value !== null);\nconst sorted = data.sort((a, b) => b.date - a.date);\nconst latest = sorted[0];\nconst prev = sorted[1];\n\nreturn [{\n  json: {\n    indicator: $json[\"indicator\"],\n    name: $json[\"name\"],\n    latest_year: latest.date,\n    latest_value: latest.value,\n    prev_year: prev.date,\n    prev_value: prev.value,\n    delta: latest.value - prev.value\n  }\n}];"
+      },
+      "id": "proc",
+      "name": "Procesar WB",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const rows = items.map(i => i.json);\n\nlet csv = 'Indicador,Año Actual,Valor Actual,Año Anterior,Valor Anterior,Variación\\n';\nfor (const r of rows) {\n  csv += `${r.name},${r.latest_year},${r.latest_value},${r.prev_year},${r.prev_value},${r.delta}\\n`;\n}\n\nlet resumen = '📊 Reporte Económico de Colombia\\n';\nfor (const r of rows) {\n  resumen += `- ${r.name}: ${r.latest_value} (${r.latest_year}), variación ${r.delta.toFixed(2)} respecto a ${r
