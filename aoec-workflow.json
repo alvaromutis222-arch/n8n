@@ -1,5 +1,5 @@
 {
-  "name": "AOEC - Agente Observatorio Económico Colombia (Compat)",
+  "name": "AOEC - Agente Observatorio Económico Colombia (v1.110.1)",
   "nodes": [
     {
       "parameters": {
@@ -85,7 +85,7 @@
     },
     {
       "parameters": {
-        "url": "https://news.google.com/rss/search?q=Colombia+econom%C3%ADa+OR+inflaci%C3%B3n+OR+DANE+OR+%22Banco%20de%20la%20Rep%C3%Bblica%22&hl=es-419&gl=CO&ceid=CO:es-419"
+        "url": "https://news.google.com/rss/search?q=Colombia+econom%C3%ADa+OR+inflaci%C3%B3n+OR+DANE+OR+%22Banco%20de%20la%20Rep%C3%BAblica%22&hl=es-419&gl=CO&ceid=CO:es-419"
       },
       "id": "RSS_Read",
       "name": "Noticias (RSS)",
