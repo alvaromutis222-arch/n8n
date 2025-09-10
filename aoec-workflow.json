@@ -10,7 +10,8 @@
               "hour": 8,
               "minute": 0
             }
-          ]
+          ],
+          "timezone": "America/Bogota"
         }
       },
       "id": "Cron_1",
@@ -91,7 +92,7 @@
       "name": "Noticias (RSS)",
       "type": "n8n-nodes-base.rssFeedRead",
       "typeVersion": 2,
-      "position": [220, 260]
+      "position": [-520, 260]
     },
     {
       "parameters": {
@@ -101,7 +102,7 @@
       "name": "Top Noticias",
       "type": "n8n-nodes-base.function",
       "typeVersion": 2,
-      "position": [480, 260]
+      "position": [-280, 260]
     },
     {
       "parameters": {
@@ -112,6 +113,23 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 2,
       "position": [740, 140]
+    },
+    {
+      "parameters": {
+        "chatId": "1433363510",
+        "text": "={{$json[\"resumen\"] + ($json[\"rss_message\"] || \"\") + \"\\n\\n\" + \"Dataset: https://raw.githubusercontent.com/alvaromutis222-arch/n8n/main/data/indicadores_co.csv\"}}"
+      },
+      "id": "Telegram_Send_Diario",
+      "name": "Enviar Telegram (Diario)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [980, 20],
+      "credentials": {
+        "telegramApi": {
+          "id": "auto",
+          "name": "Telegram-AOEC"
+        }
+      }
     },
     {
       "parameters": {
@@ -127,18 +145,18 @@
       "name": "IF Alerta",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [980, 140]
+      "position": [980, 260]
     },
     {
       "parameters": {
         "chatId": "1433363510",
-        "text": "={{$json[\"resumen\"] + ($json[\"rss_message\"] || \"\") + \"\\n\\n\" + \"Dataset: https://raw.githubusercontent.com/alvaromutis222-arch/n8n/main/data/indicadores_co.csv\"}}"
+        "text": "={{\"⚠️ ALERTA AOEC\\n\" + ($json[\"alertas\"] && $json[\"alertas\"].length ? $json[\"alertas\"].map(a=>\"• \"+a).join(\"\\n\") : \"Sin detalles\")}}"
       },
-      "id": "Telegram_Send",
-      "name": "Enviar Telegram",
+      "id": "Telegram_Send_Alerta",
+      "name": "Enviar Telegram (Alerta)",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1,
-      "position": [1220, 80],
+      "position": [1220, 260],
       "credentials": {
         "telegramApi": {
           "id": "auto",
@@ -153,6 +171,13 @@
         [
           {
             "node": "Preparar Indicadores",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Noticias (RSS)",
             "type": "main",
             "index": 0
           }
@@ -236,6 +261,13 @@
       "main": [
         [
           {
+            "node": "Enviar Telegram (Diario)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "IF Alerta",
             "type": "main",
             "index": 0
@@ -247,7 +279,7 @@
       "main": [
         [
           {
-            "node": "Enviar Telegram",
+            "node": "Enviar Telegram (Alerta)",
             "type": "main",
             "index": 0
           }
@@ -262,5 +294,5 @@
   "meta": {
     "templateCredsSetup": []
   },
-  "active": false
+  "active": true
 }
