@@ -3,20 +3,21 @@
   "nodes": [
     {
       "parameters": {
-        "triggerTimes": {
-          "item": [
+        "rule": {
+          "interval": [
             {
-              "mode": "everyDay",
-              "hour": 8,
-              "minute": 0
+              "field": "days",
+              "daysInterval": 1,
+              "triggerAtHour": 8,
+              "triggerAtMinute": 0
             }
           ]
         }
       },
       "id": "Cron_1",
       "name": "Cron Diario",
-      "type": "n8n-nodes-base.cron",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
       "position": [-760, 20]
     },
     {
@@ -295,4 +296,3 @@
   },
   "active": true
 }
-
