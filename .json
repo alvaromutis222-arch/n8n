@@ -1,0 +1,366 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "id": "d14fbb64-7577-45fa-a557-00962d05b4fa",
+      "name": "Cron Diario",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.worldbank.org/v2/country/CO/indicator/{{$json[\"indicator\"]}}?format=json&per_page=60",
+        "options": {}
+      },
+      "id": "3127e58f-0509-4f4e-bc5d-2116035b40c5",
+      "name": "WB API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition",
+        "options": {}
+      },
+      "id": "25b3f057-b457-46e5-8031-40c42ebe7e89",
+      "name": "Merge Reporte + Noticias",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        1712,
+        128
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "chatId": "-1003020712570",
+        "text": "=📊 *Reporte Económico — {{$json.fecha}}*  \n\n{{$json.resumen}}\n\n📰 *Titulares económicos (Top 5):*  \n{{$json.rss_message}}\n",
+        "additionalFields": {}
+      },
+      "id": "29326b70-95c5-4882-b63f-c057d2a6aea7",
+      "name": "Enviar Telegram (Diario)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        1952,
+        0
+      ],
+      "webhookId": "e80ef2e8-e3b9-4526-b3d0-18ac2749f2db",
+      "credentials": {
+        "telegramApi": {
+          "id": "2SPKt9q2toBkxjUd",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "e7f70982-0652-4635-8808-362a9f997562",
+              "leftValue": "={{ $json[\"hayAlerta\"].toString() }}\n",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c891f7cb-dfc3-47ab-a760-2905f4ffdd22",
+      "name": "IF Alerta",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1888,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "-1003020712570",
+        "text": "={{\"⚠️ ALERTA AOEC\\n\" + ($json[\"alertas\"] && $json[\"alertas\"].length ? $json[\"alertas\"].map(a=>\"• \"+a).join(\"\\n\") : \"Sin detalles\")}}",
+        "additionalFields": {}
+      },
+      "id": "4093d3c5-88e7-425a-9a7b-0ffe8de46228",
+      "name": "Enviar Telegram (Alerta)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        2192,
+        240
+      ],
+      "webhookId": "99ef0908-72aa-4a44-b702-3884546926bf",
+      "credentials": {
+        "telegramApi": {
+          "id": "2SPKt9q2toBkxjUd",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Emite un item por indicador que queremos consultar\nreturn [\n  { json: { indicator: 'FP.CPI.TOTL.ZG', name: 'Inflación (%)' } },\n  { json: { indicator: 'SL.UEM.TOTL.ZS', name: 'Desempleo (%)' } },\n  { json: { indicator: 'NY.GDP.MKTP.CD', name: 'PIB (USD corrientes)' } }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "e4bf8f26-d1a9-49cf-8238-a660f2f2ac86",
+      "name": "Preparar indicadores"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Procesar WB: aplana la respuesta del WB y calcula último/penúltimo por indicador\n\nconst NAMES = {\n  'FP.CPI.TOTL.ZG': 'Inflación (%)',\n  'SL.UEM.TOTL.ZS': 'Desempleo (%)',\n  'NY.GDP.MKTP.CD': 'PIB (USD corrientes)',\n};\n\nfunction toRowsFromJson(j) {\n  // j puede ser: [meta, data], { \"0\": {...}, \"1\": {...} ... }, {data:[...]}, o una fila suelta\n  let rows = [];\n\n  // Caso A: array [meta, data]\n  if (Array.isArray(j) && Array.isArray(j[1])) {\n    rows = j[1];\n    return rows;\n  }\n\n  // Caso B: objeto con claves numéricas \"0\",\"1\",\"2\"...\n  if (j && typeof j === 'object') {\n    const numKeys = Object.keys(j).filter(k => /^\\d+$/.test(k));\n    if (numKeys.length) {\n      rows = numKeys.map(k => j[k]);\n      return rows;\n    }\n  }\n\n  // Caso C: { data: [...] }\n  if (Array.isArray(j?.data)) {\n    rows = j.data;\n    return rows;\n  }\n\n  // Caso D: ya es una fila suelta\n  if (j && (j.date !== undefined || j.value !== undefined)) {\n    rows = [j];\n    return rows;\n  }\n\n  return rows;\n}\n\n// 1) Aplanar TODO lo que llega del WB en filas\nconst incoming = $input.all().map(i => i.json);\nconst flat = [];\nfor (const j of incoming) {\n  const rows = toRowsFromJson(j);\n  for (const r of rows) flat.push(r);\n}\n\n// 2) Agrupar por indicador y calcular latest/prev\nconst byId = new Map();\nfor (const r of flat) {\n  const id =\n    r?.indicator?.id ??\n    r?.indicator?.value ??\n    r?.indicator ??\n    'UNKNOWN';\n\n  if (!byId.has(id)) byId.set(id, []);\n  byId.get(id).push(r);\n}\n\nconst out = [];\nfor (const [id, arr] of byId.entries()) {\n  const cleaned = arr\n    .filter(x => x && x.date != null && x.value != null)\n    .sort((a, b) => Number(b.date) - Number(a.date));\n\n  const latest = cleaned[0] || null;\n  const prev   = cleaned[1] || null;\n\n  const latest_value = latest ? Number(latest.value) : null;\n  const prev_value   = prev   ? Number(prev.value)   : null;\n\n  const delta = (latest_value != null && prev_value != null)\n    ? (latest_value - prev_value)\n    : null;\n\n  out.push({\n    json: {\n      indicator: id,\n      name: NAMES[id] || id,\n      latest_date: latest ? latest.date : null,\n      latest_value,\n      prev_date: prev ? prev.date : null,\n      prev_value,\n      delta,\n    },\n  });\n}\n\nreturn out;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        688,
+        0
+      ],
+      "id": "06a1f624-89f5-4115-af15-3c9cb3ec9765",
+      "name": "Procesar WB",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Construye CSV + resumen + banderas de alerta a partir de la salida de \"Procesar WB\"\n\nconst ALERTA_DELTA_PP = 1.0;    // alerta si cambio absoluto >= 1 punto\nconst ALERTA_INFLACION = 10.0;  // alerta si inflación > 10%\nconst FECHA = new Date().toISOString().slice(0,10);\n\n// Recoge filas desde la entrada\nconst rowsIn = $input.all().map(i => i.json);\n\n// Normaliza/ordena por nombre para un resumen estable\nconst rows = rowsIn\n  .map(r => ({\n    indicator: r.indicator ?? null,\n    name: r.name ?? (r.indicator || 'Desconocido'),\n    latest_date: r.latest_date ?? null,\n    latest_value: (r.latest_value != null && !Number.isNaN(Number(r.latest_value))) ? Number(r.latest_value) : null,\n    prev_date: r.prev_date ?? null,\n    prev_value: (r.prev_value != null && !Number.isNaN(Number(r.prev_value))) ? Number(r.prev_value) : null,\n    delta: (r.delta != null && !Number.isNaN(Number(r.delta))) ? Number(r.delta) : (\n      (r.latest_value != null && r.prev_value != null) ? Number(r.latest_value) - Number(r.prev_value) : null\n    ),\n  }))\n  .sort((a,b) => (a.name || '').localeCompare(b.name || ''));\n\n// CSV\nconst header = ['indicator','name','latest_date','latest_value','prev_date','prev_value','delta'];\nconst csvLines = [header.join(',')];\n\nfor (const r of rows) {\n  // Escapar comillas del nombre\n  const safeName = `\"${String(r.name||'').replace(/\"/g, '\"\"')}\"`;\n  csvLines.push([\n    r.indicator ?? '',\n    safeName,\n    r.latest_date ?? '',\n    (r.latest_value ?? '') === '' ? '' : r.latest_value,\n    r.prev_date ?? '',\n    (r.prev_value ?? '') === '' ? '' : r.prev_value,\n    (r.delta ?? '') === '' ? '' : r.delta\n  ].join(','));\n}\nconst csv = csvLines.join('\\n');\n\n// Resumen legible\nconst resumenDetalles = rows.map(r => {\n  const v = (r.latest_value != null)\n    ? r.latest_value.toLocaleString('en-US', { maximumFractionDigits: 2 })\n    : 'NA';\n  const d = (r.delta != null)\n    ? (r.delta > 0 ? `+${r.delta.toFixed(2)}` : r.delta.toFixed(2))\n    : 'NA';\n  return `• ${r.name}: ${v} (año ${r.latest_date ?? 'NA'}), Δ ${d}`;\n}).join('\\n');\n\nconst resumen = `AOEC — Reporte ${FECHA}\\n${resumenDetalles}`;\n\n// Alertas\nlet hayAlerta = false;\nconst alertas = [];\n\nfor (const r of rows) {\n  // Inflación alta\n  if (r.indicator === 'FP.CPI.TOTL.ZG' && r.latest_value != null && r.latest_value > ALERTA_INFLACION) {\n    hayAlerta = true;\n    alertas.push(`Inflación alta: ${r.latest_value.toFixed(2)}% (${r.latest_date})`);\n  }\n  // Variación grande\n  if (r.delta != null && Math.abs(r.delta) >= ALERTA_DELTA_PP) {\n    hayAlerta = true;\n    const prev = (r.prev_value != null) ? r.prev_value : 'NA';\n    const latest = (r.latest_value != null) ? r.latest_value : 'NA';\n    alertas.push(`${r.name}: variación ${r.delta.toFixed(2)} (de ${prev} en ${r.prev_date ?? 'NA'} a ${latest} en ${r.latest_date ?? 'NA'})`);\n  }\n}\n\nreturn [\n  {\n    json: {\n      fecha: FECHA,\n      csv,\n      resumen,\n      hayAlerta,\n      alertas\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        0
+      ],
+      "id": "957fd8be-e5a3-4485-a1ee-e4be5b2fe535",
+      "name": "Contruir reporte"
+    },
+    {
+      "parameters": {
+        "jsCode": "const itemsIn = $input.all();\nconst top = itemsIn.slice(0, 5).map((it, i) => {\n  const t = it.json.title || 'Sin título';\n  const l = it.json.link  || '#';\n  return `${i+1}. ${t}\\n   ${l}`;\n});\nreturn [{\n  json: {\n    titulares: top.join('\\n'),\n    rss_message: `\\n\\nTitulares económicos (top 5):\\n${top.join('\\n')}`\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        816,
+        240
+      ],
+      "id": "07166548-7704-4cb2-b015-369048a7a68b",
+      "name": "Top Noticias"
+    },
+    {
+      "parameters": {
+        "url": "https://www.portafolio.co/rss/economia",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        560,
+        240
+      ],
+      "id": "f342daa3-0013-435f-81f4-ab215bf98626",
+      "name": "RSS Read"
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "edit",
+        "owner": {
+          "__rl": true,
+          "value": "alvaromutis222-arch",
+          "mode": "name"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "n8n",
+          "mode": "name"
+        },
+        "filePath": "data/indicadores_co.csv",
+        "fileContent": "={{$json[\"csv\"]}} (desde “Construir reporte”)",
+        "commitMessage": "=chore(data): update indicadores_co {{$json[\"fecha\"]}}"
+      },
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        1104,
+        0
+      ],
+      "id": "7313f6d4-81c1-4e99-ab80-fa5ae3306997",
+      "name": "Edit a file",
+      "webhookId": "776b20d2-e1ef-45d2-a765-9fa9ce43aa1a",
+      "credentials": {
+        "githubApi": {
+          "id": "SmpZ2FlQxh5PKWhz",
+          "name": "GitHub account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Merge Reporte + Noticias": {
+      "main": [
+        [
+          {
+            "node": "Enviar Telegram (Diario)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Alerta": {
+      "main": [
+        [
+          {
+            "node": "Enviar Telegram (Alerta)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar indicadores": {
+      "main": [
+        [
+          {
+            "node": "WB API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WB API": {
+      "main": [
+        [
+          {
+            "node": "Procesar WB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar WB": {
+      "main": [
+        [
+          {
+            "node": "Contruir reporte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contruir reporte": {
+      "main": [
+        [
+          {
+            "node": "IF Alerta",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Edit a file",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Reporte + Noticias",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Top Noticias": {
+      "main": [
+        [
+          {
+            "node": "Merge Reporte + Noticias",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Cron Diario": {
+      "main": [
+        [
+          {
+            "node": "Preparar indicadores",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Read": {
+      "main": [
+        [
+          {
+            "node": "Top Noticias",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit a file": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "200068ea-3e65-4395-a3d6-a36716eaac0c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5e6c17c5b31ace61eda3bff752a4d705cc44498e5752e88d9df1cd9f8573d71c"
+  },
+  "id": "KQy6IFX5J5ak7xME",
+  "tags": []
+}
