@@ -27,6 +27,7 @@ Se muestra inicialmente el flujo completo para tener una visión general de su c
 
 ![Flujo](flujo.jpg)
 
+
 EL disparador del flujo se configura a través de un cron diario que se programa para ejecutarse a las 8 am de cada dia y solo basta con introducir los parametros como se muestra en la siguiente figura:
 !<img src="Crono.png" alt="Crono" width="400"/>
 
