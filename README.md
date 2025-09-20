@@ -25,7 +25,7 @@ Existen un punto adicional y es cuando lo llevamos al contexto de aprendizaje en
 
 Se muestra inicialmente el flujo completo para tener una visión general de su composición:
 
-![Flujo](flujo.jpg)
+![flujo](flujo.jpg)
 
 
 EL disparador del flujo se configura a través de un cron diario que se programa para ejecutarse a las 8 am de cada dia y solo basta con introducir los parametros como se muestra en la siguiente figura:
