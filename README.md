@@ -25,10 +25,10 @@ Existen un punto adicional y es cuando lo llevamos al contexto de aprendizaje en
 
 Se muestra inicialmente el flujo completo para tener una visión general de su composición:
 
-![Flujo](images/flujo.jpg)
+![Flujo](flujo.jpg)
 
 EL disparador del flujo se configura a través de un cron diario que se programa para ejecutarse a las 8 am de cada dia y solo basta con introducir los parametros como se muestra en la siguiente figura:
-!<img src="images/Crono.png" alt="Crono" width="400"/>
+!<img src="Crono.png" alt="Crono" width="400"/>
 
 El flujo continua en dos caminos:
 Por una parte se prepara un json que contiene los indicadores de interes que serán consultado en la API del banco de la republica, estos son tomados por el nodo de scrapping y llevados a un script en javascript que toma los resultados entregados por la API y los lleva a un formato tabular para luego ser escritos en el archivo indicadores_co.csv del repositorio en Github. En este punto es importante mencionar que la comunicacion entre n8n y Github requiere de un token de seguridad que habilita la escritura en el repo respectivo.
